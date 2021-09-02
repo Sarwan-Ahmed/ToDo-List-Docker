@@ -1,3 +1,1 @@
-from django.contrib import admin
-
-# Register your models here.
+"""Module to register social auth models"""

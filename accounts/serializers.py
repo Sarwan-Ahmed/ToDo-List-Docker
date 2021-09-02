@@ -1,17 +1,20 @@
+"""Module to define serializers for accounts models"""
 from rest_framework import serializers
 from .models import User
 
 
-# User Serializer
+
 class UserSerializer(serializers.ModelSerializer):
+    """Serialize user data"""
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'email_verified')
 
 
-# Register Serializer
+
 class RegisterSerializer(serializers.ModelSerializer):
-    
+    """Serialize user register data"""
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'password']
@@ -19,6 +22,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
     def validate(self, attrs):
+        """Validate user data while registering"""
         email = attrs.get('email', '')
         username = attrs.get('username', '')
 
@@ -28,11 +32,13 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
+        """Create user after data validation"""
         return User.objects.create_user(**validated_data)
 
 
-#Resend Verification Link serializer
+
 class ResendLinkSerializer(serializers.ModelSerializer):
+    """Serislize resend link data"""
     class Meta:
         model = User
         fields = ['email']

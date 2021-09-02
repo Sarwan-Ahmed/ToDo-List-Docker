@@ -1,76 +1,77 @@
+"""Module to define views for accounts"""
 from django.conf import settings
+from django.contrib.auth import login, logout
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.contrib.sites.shortcuts import get_current_site
 from rest_framework import generics, status
 from rest_framework.response import Response
-from django.contrib.auth import login, logout
-from .serializers import UserSerializer, RegisterSerializer, ResendLinkSerializer
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
-from django.core.mail import send_mail, EmailMessage
+from .serializers import UserSerializer, RegisterSerializer, ResendLinkSerializer
 from .models import User
-from django.core.cache import cache
-from django.contrib.sites.shortcuts import get_current_site
-import threading
-from rest_framework.exceptions import AuthenticationFailed
 
-'''
-POST: http://127.0.0.1:8000/accounts/register/  <-- create user
-POST: http://127.0.0.1:8000/accounts/login/  <-- login user
-POST: http://127.0.0.1:8000/accounts/logout/  <-- logout user
-'''
+
 
 
 class RegisterAPI(generics.GenericAPIView):
     """
     An API view to SignUp(register) a user.
     Takes Username, Email and Password.
-    Creates a user and sends verification link for verifying ownership of email.
+    Creates a user and sends verification
+    link for verifying ownership of email.
     """
-    
+
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny,]
 
     def post(self, request):
+        """POST method to validate data and register new user"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         token = Token.objects.get(user=user)
-        
+
         try:
             domain = get_current_site(request)
-            verificationLink = "http://"+str(domain)+"/accounts/verify-email/"+token.key+"/"
-            messageContent = 'Hello '+str(request.data['username'])+"\nPlease click on the link below to verify your account:\n"+verificationLink
-            messageSubject = 'Account verification'
+            verification_link = "http://"+str(domain)+"/accounts/verify-email/"+token.key+"/"
+
+            message_content = ("Hello " + str(request.data['username']) + "\nPlease click on"
+                              " the link below to verify your account:\n" + verification_link)
+
+            message_subject = 'Account verification'
 
             if not settings.TESTING:
-                send_mail(subject=messageSubject,
-                    message=messageContent,
+                send_mail(subject=message_subject,
+                    message=message_content,
                     from_email=None,
                     recipient_list=[request.data['email']],
                     fail_silently=False,)
 
-                '''email = EmailMessage(subject=messageSubject, body=messageContent, 
-                    from_email=settings.EMAIL_HOST_USER, to=[request.data['email']])
-                email.send()'''
+            return Response({"success":"Verification link sent to your email."
+                             " Please verify your account"}, status=status.HTTP_201_CREATED)
 
-            return Response({'success':'Verification link sent to your email. Please verify your account'}, status=status.HTTP_201_CREATED)
         except:
-            return Response({'error':"Email not sent"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error":"Email not sent"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 class VerifyEmail(generics.GenericAPIView):
     """
     An API view to verify email of new user.
-    User redirects to this view when clicks on verification link sent on their email.
-    User's email will be verified if they registered through email not through OAuth 2 .
+    User redirects to this view when clicks
+    on verification link sent on their email.
+    User's email will be verified if they registered
+    through email not through OAuth 2 .
     """
 
     permission_classes = (AllowAny,)
 
     def get(self, request, token):
+        """GET method to verify ownership of email of registered user"""
         try:
             user_token = Token.objects.filter(key=token)
             if not user_token.exists():
@@ -78,7 +79,7 @@ class VerifyEmail(generics.GenericAPIView):
 
             user_id = user_token[0].user.pk
             user = User.objects.filter(id=user_id)
-            
+
             if user[0].email_verified:
                 return Response({'Response' : 'Email already verified'}, status=status.HTTP_200_OK)
 
@@ -93,8 +94,10 @@ class VerifyEmail(generics.GenericAPIView):
                 "message": "Email verified successfully",
                 "user": serializer.data,
                 "token": token}, status=status.HTTP_201_CREATED)
+
         except:
-            return Response({'error':'Email verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error':'Email verification failed.'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -102,69 +105,80 @@ class ResendLink(generics.GenericAPIView):
     """
     An Api view to resend verification link.
     Takes Email of registered user.
-    Sends verification link for verifying ownership of email. 
+    Sends verification link for
+    verifying ownership of email.
     """
 
     permission_classes = (AllowAny,)
     serializer_class = ResendLinkSerializer
 
     def post(self, request):
-
+        """POST method to resend email verification link on registered email"""
         try:
             if 'email' not in request.data:
-                return Response({'field error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'field error': 'Email is required'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
             user = User.objects.filter(email=request.data['email'])
+
             if not user.exists():
-                return Response({'error': 'SignUp required! Account does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'SignUp required! Account does not exist.'},
+                                status=status.HTTP_404_NOT_FOUND)
 
             if user[0].auth_provider != 'email':
-                return Response({'error': "Can't send link. Your account is associated with "+user[0].auth_provider}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'error': "Can't send link. Your account is associated with "
+                                + user[0].auth_provider}, status=status.HTTP_403_FORBIDDEN)
 
             user = user[0]
             token, created = Token.objects.get_or_create(user=user)
             domain = get_current_site(request)
-            verificationLink = "http://"+str(domain)+"/accounts/verify-email/"+token.key+"/"
-            messageContent = 'Hello '+user.username+"\nPlease click on the link below to verify your account:\n"+verificationLink
-            messageSubject = 'Account verification'
+            verification_link = "http://"+str(domain)+"/accounts/verify-email/"+token.key+"/"
+
+            message_content = ("Hello " + user.username + "\nPlease click on the link below to"
+                              " verify your account:\n" + verification_link)
+
+            message_subject = "Account verification"
 
             if not settings.TESTING:
-                send_mail(subject=messageSubject,
-                    message=messageContent,
+                send_mail(subject=message_subject,
+                    message=message_content,
                     from_email=None,
                     recipient_list=[request.data['email']],
                     fail_silently=False,)
-            
-                '''email = EmailMessage(subject=messageSubject, body=messageContent, 
-                from_email=settings.EMAIL_HOST_USER, to=[request.data['email']])
-                email.send()
-                EmailThread(email).start()'''
 
-            return Response({'success':'verification link sent on email'}, status=status.HTTP_200_OK)
+            return Response({'success':'verification link sent on email'},
+                            status=status.HTTP_200_OK)
+
         except:
-            return Response({'error': 'verification link sending failed'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'verification link sending failed'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 
-        
+
 class LoginView(ObtainAuthToken):
     """
     An API view to login a user.
-    Takes Email in username field and Password. 
+    Takes Email in username field and Password.
     Returns Token, User_ID and Email.
     """
 
     def post(self, request, *args, **kwargs):
+        """POST method to validate login data and login user"""
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+
         if not user.email_verified:
             raise AuthenticationFailed(detail='Please verify your email first')
+
         if user.auth_provider!='email':
-            raise AuthenticationFailed(detail='Please continue your login using ' + user.auth_provider)
+            raise AuthenticationFailed(detail='Please continue your login using '
+                                       + user.auth_provider)
 
         login(request, user)
         token, created = Token.objects.get_or_create(user=user)
+
         return Response({
             'token': token.key,
             'user_id': user.pk,
@@ -183,7 +197,8 @@ class LogoutView(generics.GenericAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-    def post(self, request, format=None):
+    def post(self, request): # , format=None):
+        """POST method to get user token, clear the cache and then logout user"""
 
         # delete user reports from cache before logging out
         if cache.get(str(request.user.pk)+'_TotalTasks'):
@@ -204,15 +219,3 @@ class LogoutView(generics.GenericAPIView):
         request._auth.delete()
         logout(request)
         return Response({'Response':'successfully logged out'}, status=status.HTTP_200_OK)
-
-
-'''
-class EmailThread(threading.Thread):
-
-    def __init__(self, email):
-        self.email = email
-        threading.Thread.__init__(self)
-
-        def run(self):
-            self.email.send()
-'''

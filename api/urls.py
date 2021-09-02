@@ -1,3 +1,4 @@
+"""module to define urls for API views"""
 from django.urls import path
 from . import views
 

@@ -1,10 +1,11 @@
+"""Module to define view for socail auth"""
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from .serializers import GoogleSocialAuthSerializer
 
 
 class GoogleSocialAuthView(generics.GenericAPIView):
-
+    """Social auth view for google"""
     serializer_class = GoogleSocialAuthSerializer
     permission_classes = [permissions.AllowAny,]
 

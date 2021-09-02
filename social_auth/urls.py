@@ -1,3 +1,4 @@
+"""Module to define urls for social auth"""
 from django.urls import path
 from .views import GoogleSocialAuthView
 

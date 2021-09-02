@@ -1,3 +1,4 @@
+"""Module to define utils"""
 from rest_framework.test import APITestCase
 from django.urls import reverse
 from faker import Faker
@@ -6,8 +7,11 @@ from accounts.models import User
 
 
 class TestSetUp(APITestCase):
+    """Setup for test cases"""
 
     def setUp(self):
+        """Urls and data for testing"""
+
         # Accounts urls
         self.register_url = reverse('register')
         self.login_url = reverse('login')
@@ -74,11 +78,12 @@ class TestSetUp(APITestCase):
 
 
     def create_test_user(self):
-            user = User.objects.create_user(username=self.email.split('@')[0], email=self.email)
-            user.set_password(self.email)
-            user.email_verified = True
-            user.save()
-            return user
+        """creating user for test cases"""
+        user = User.objects.create_user(username=self.email.split('@')[0], email=self.email)
+        user.set_password(self.email)
+        user.email_verified = True
+        user.save()
+        return user
 
     def tearDown(self):
         return super().tearDown()

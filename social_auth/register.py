@@ -1,22 +1,27 @@
+"""Module to register social auth users"""
 import random
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.authtoken.models import Token
+from django.conf import settings
 from django.contrib.auth import authenticate
 from accounts.models import User
-from rest_framework.exceptions import AuthenticationFailed
-from django.conf import settings
-from rest_framework.authtoken.models import Token
+
 
 
 def generate_username(name):
-
+    """Check if username already exists then generate new unique username"""
     username = "".join(name.split(' ')).lower()
+
     if not User.objects.filter(username=username).exists():
         return username
+
     else:
         random_username = username + str(random.randint(0, 1000))
         return generate_username(random_username)
 
 
 def register_social_user(provider, user_id, email, name):
+    """Create account of social auth user if not exists"""
     filtered_user_by_email = User.objects.filter(email=email)
 
     if filtered_user_by_email.exists():
@@ -31,8 +36,8 @@ def register_social_user(provider, user_id, email, name):
                 'token': token.key}
 
         else:
-            raise AuthenticationFailed(
-                detail='Please continue your login using ' + filtered_user_by_email[0].auth_provider)
+            raise AuthenticationFailed(detail='Please continue your login using '
+                                       + filtered_user_by_email[0].auth_provider)
 
     else:
         user = {

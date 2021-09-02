@@ -1,3 +1,1 @@
-from django.test import TestCase
-
-# Create your tests here.
+"""Module to define test cases for social auth"""

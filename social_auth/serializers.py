@@ -1,14 +1,17 @@
+"""Module to define serializers for social auth"""
 from rest_framework import serializers
-from . import google
-from .register import register_social_user
 from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
+from . import google
+from .register import register_social_user
 
 
 class GoogleSocialAuthSerializer(serializers.Serializer):
+    """Serialize social auth Google data"""
     auth_token = serializers.CharField()
 
     def validate_auth_token(self, auth_token):
+        """validate auth token and serialize the data"""
         user_data = google.Google.validate(auth_token)
         try:
             user_data['sub']
